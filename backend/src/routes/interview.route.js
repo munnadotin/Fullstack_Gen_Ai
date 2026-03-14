@@ -36,4 +36,4 @@ interviewRoute.get("/", authMiddleware, getAllInterviewReport);
  * @access private
  */
 
-interviewRoute.post("/resume/pdf/:id", authMiddleware, generateResumePdf);
+interviewRoute.post("/resume/pdf/:interviewId", authMiddleware, generateResumePdf);

@@ -15,7 +15,6 @@ export default function InterviewResults() {
     const { id } = useParams();
     const navigate = useNavigate();
 
-    console.log(data)
     useEffect(() => {
         async function getReport() {
             try {

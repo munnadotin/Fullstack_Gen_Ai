@@ -1,5 +1,5 @@
 import { createRequire } from "module";
-import { generateInterviewReport } from "../services/ai.service.js";
+import { generateInterviewReport, generatePdf } from "../services/ai.service.js";
 import { interviewModel } from "../models/interview.model.js";
 import mongoose from "mongoose";
 const require = createRequire(import.meta.url);
@@ -101,9 +101,9 @@ export async function getAllInterviewReport(req, res) {
         });
 
     } catch (error) {
-        console.log(error)
         res.status(500).json({
-            message: "Internal server error"
+            message: "Internal server error",
+            error: error.message
         })
     }
 }
@@ -113,5 +113,31 @@ export async function getAllInterviewReport(req, res) {
  * @route POST /api/interview/resume/pdf/:id
  */
 export async function generateResumePdf(req, res) {
+    try {
+        const { interviewId } = req.params;
 
+        const interviewReport = await interviewModel.findOne({ _id: interviewId });
+
+        if (!interviewReport) {
+            return res.status(404).json({
+                message: "Interview report not found!"
+            })
+        }
+
+        const { resume, selfDescription, jobDescription } = interviewReport;
+
+        const interviewReportPDF = await generatePdf({ resume, selfDescription, jobDescription });
+
+        res.set({
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `attachment; filename=${interviewId}resume.pdf`,
+        });
+
+        res.send(interviewReportPDF);
+    } catch (error) {
+        res.status(500).json({
+            message: "Internal server error",
+            error: error.message
+        })
+    }
 }

@@ -1,5 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
+import puppeteer from "puppeteer";
 
 const ai = new GoogleGenAI({
     apiKey: process.env.GOOGLE_GENAI_API_KEY
@@ -166,4 +168,81 @@ ${jobDescription}`;
     }
 
     return validated.data;
+}
+
+async function generatePdfFromHtml(htmlContent) {
+    const browser = await puppeteer.launch({ headless: "new" });
+
+    const page = await browser.newPage();
+
+    await page.setContent(htmlContent, {
+        waitUntil: "networkidle0"
+    });
+
+    const pdfBuffer = await page.pdf({
+        format: "A4",
+        printBackground: true,
+        margin: {
+            top: "20mm",
+            bottom: "20mm",
+            left: "15mm",
+            right: "15mm"
+        }
+    });
+
+    await browser.close();
+
+    return pdfBuffer;
+}
+
+export async function generatePdf({ resume, selfDescription, jobDescription }) {
+    const generatePdfSchema = z.object({
+        html: z.string().describe(
+            "The HTML content of the resume which can be converted to PDF"
+        )
+    });
+
+   const prompt = `
+You are a professional resume writer.
+
+TASK:
+Rewrite and improve the candidate's resume so that it is highly relevant to the provided job description.
+
+Instructions:
+- Modify and improve the resume content.
+- Emphasize skills and experiences that match the job description.
+- Add relevant keywords from the job description.
+- Remove or reduce irrelevant information.
+- Make the resume ATS friendly.
+- Use professional language that sounds human written.
+- Keep the resume concise (1-2 pages when converted to PDF).
+
+Candidate Resume:
+${resume}
+
+Candidate Self Description:
+${selfDescription}
+
+Job Description:
+${jobDescription}
+
+Return ONLY a JSON object:
+{
+ "html": "<complete HTML resume>"
+}
+`;
+    const res = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: zodToJsonSchema(generatePdfSchema)
+        }
+    });
+
+    const jsonContent = JSON.parse(res.text);
+
+    const pdfBuffer = await generatePdfFromHtml(jsonContent.html);
+
+    return pdfBuffer;
 }
